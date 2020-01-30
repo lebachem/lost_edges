@@ -37,8 +37,10 @@ X_reduced<-X_inform[which(rownames(X_inform)%in%combinations_small),]
 Y_small<-t(A_small%*%X_reduced)
 N_small<-n_small*(n_small-1)
 
+
 # load the full data
 load("Data/full_data.RData")
+
 
 ## Plot the density and aggregated quantities--
 
@@ -59,6 +61,21 @@ m<-c(m,sum(Y[tau,]==0))
 m_small<-c(m_small,sum(Y_small[tau,]==0))
 }
 
+## Plot the correlation between the marginals and the GDP for the reduce dataset
+
+# start with the outgoing margins
+Y_out = t(Y_small[,1:59])
+Y_in = t(Y_small[,60:118])
+cor_out = c()
+cor_in = c()
+cor_dyad = c()
+cor_lag = c()
+for (tau in 1:length(t)){
+  cor_out = c(cor_out, cor(Y_out[,tau],node_gdp[,tau]))
+  cor_in = c(cor_in, cor(Y_in[,tau], node_gdp[,tau]))
+  cor_dyad = c(cor_dyad, cor(X_reduced[,tau], exp(line_gdp[,tau])))
+}
+
 
 tmon <- as.yearmon(2003 + seq(0, 181)/11)
 tmon<-as.Date(tmon)
@@ -69,7 +86,7 @@ total_small<-rowSums(Y_small[,1:n_small])
 message<-data.frame(cbind(d/N,1-m/dim(Y)[1],total,tmon))
 colnames(message)<-c("density","marginals","total","time")
 
-message_small<-data.frame(cbind(d_small/N_small,1-m_small/dim(Y_small)[1],total_small,tmon))
+message_small<-data.frame(cbind(d_small/N_small,1-m_small/dim(Y_small)[1],total_small,tmon,cor_in, cor_out, cor_dyad))
 colnames(message_small)<-c("density","marginals","total","time")
 
 # Density
@@ -98,14 +115,34 @@ p2_small<-ggplot(data=message_small,aes(x=tmon,y=marginals))+
 p3<-ggplot(data=message,aes(x=tmon,y=total))+
   theme_bw()+geom_line()+
   scale_x_date(date_labels = "%m/%Y",breaks = pretty(tmon, n = 10))+
-  ylab("Total Messages")+xlab("Time")+ggpubr::rotate_x_text()
+    ylab("Total Messages")+xlab("Time")+ggpubr::rotate_x_text()
 
 p3_small<-ggplot(data=message_small,aes(x=tmon,y=total))+
   theme_bw()+geom_line()+
   scale_x_date(date_labels = "%m/%Y",breaks = pretty(tmon, n = 10))+ 
   ylab("Total Messages")+xlab("Time")+ggpubr::rotate_x_text()
 
+# Correlation of marginals and gdps
+p4_in<<-ggplot(data=message,aes(x=tmon,y=cor_in))+
+  theme_bw()+geom_line()+
+  scale_x_date(date_labels = "%m/%Y",breaks = pretty(tmon, n = 10))+
+  ylab("Correlation: GDP and valued indegree")+xlab("Time")+ggpubr::rotate_x_text()
 
+p4_out<-ggplot(data=message_small,aes(x=tmon,y=cor_out))+
+  theme_bw()+geom_line()+
+  scale_x_date(date_labels = "%m/%Y",breaks = pretty(tmon, n = 10))+
+  ylab("Correlation: GDP and valued outdegree")+xlab("Time")+ggpubr::rotate_x_text()
+
+
+
+p4_dyad<-ggplot(data=message_small,aes(x=tmon,y=cor_dyad))+
+  theme_bw()+geom_line()+
+  scale_x_date(date_labels = "%m/%Y",breaks = pretty(tmon, n = 10))+
+  ylab("Correlation: (gdp_i+gdp_j) and valued edges")+xlab("Time")+ggpubr::rotate_x_text()
+
+  pdf("1) Descriptives/Figures/gdp_correlation.pdf",width = 9,height = 4.5)
+  p4_in + p4_out + p4_dyad
+  dev.off()
 
 pdf("1) Descriptives/Figures/density_and_total.pdf",width = 9,height = 4.5)
 p1+p2+p3
@@ -126,14 +163,14 @@ dataf_long <- melt(dataf, id="date")  # convert to long format
 p4<-ggplot(data=dataf_long, aes(x=date, y=value,colour=variable)) +
   geom_line()  + theme_bw()+
   scale_colour_grey()+ ylab("Messages sent per Dyad")+xlab("Time")+ggpubr::rotate_x_text()+
-  theme(legend.position="none")  
+  theme(legend.position="none")  #  +  scale_y_continuous(trans='log10')
 
 pdf("1) Descriptives/Figures/messages.pdf",width = 9,height = 5.5)
 p4
 dev.off()
 
 
-## Degrees and degree distribution ----
+  ## Degrees and degree distribution ----
 
 dout<-c()
 din<-c()
